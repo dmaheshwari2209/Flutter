@@ -1,8 +1,46 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'dart:js' as js;
-void main() {
+import 'package:clevertap_plugin/clevertap_plugin.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+Future<void> main() async {
+   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      apiKey: 'AIzaSyAn9YNjwzOzayKKhFgUs4_vGWDlsA8Tu3M',
+      appId: '1:531495931694:android:34fa3544c6d3d1053ab4bf',
+      messagingSenderId: '531495931694',
+      projectId: 'com.example.fcm',
+    ));
   runApp(MyApp());
+ 
 }
+FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = new FlutterLocalNotificationsPlugin();
+void showNotification(String nm, String nt) async {
+    //{notification: {title: title, body: test}, data: {notification_type: Welcome, body: body, badge: 1, sound: , title: farhana mam, click_action: FLUTTER_NOTIFICATION_CLICK, message: H R U, category_id: 2, product_id: 1, img_url: }}
+    print(nm);
+
+    var title = nt;
+    var msge = nm;
+
+    var android = new AndroidNotificationDetails(
+        'fluttertest', 'channel NAME', 'CHANNEL DESCRIPTION',
+        priority: Priority.max, importance: Importance.max);
+
+    var platform = new NotificationDetails(android: android);
+    await flutterLocalNotificationsPlugin.show(0, title, msge, platform,
+        payload: msge);
+  }
+ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print("Handling a background message");
+  showNotification(message.data["nm"],message.data["nt"]);
+  CleverTapPlugin.createNotification(jsonEncode(message.data));
+  print('on message'+message.data["nm"]+"working");
+}
+
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -47,7 +85,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
-
+  static const platform = const MethodChannel("myChannel");
   void _incrementCounter() {
 
 
@@ -58,9 +96,51 @@ class _MyHomePageState extends State<MyHomePage> {
       // _counter without calling setState(), then the build method would not be
       // called again, and so nothing would appear to happen.
       _counter++;
-      js.context.callMethod('alertMessage', ['Clevertap event called']);
-      js.context.callMethod('raise_event', ['Product Viewed from Flutter']);
+      var eventData = {
+        // Key:    Value
+        'first': 'partridge',
+        'second': 'turtledoves',
+        'number': 1
+      };
+      CleverTapPlugin.recordEvent("Flutter Event",eventData);
+
     });
+  }
+  @override
+  void initState() { CleverTapPlugin.setDebugLevel(3);
+  CleverTapPlugin.createNotificationChannel("fluttertest", "Flutter Test", "Flutter Test", 3, true);
+    platform.setMethodCallHandler(nativeMethodCallHandler);
+  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  var initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher'); // <- default icon name is @mipmap/ic_launcher
+ // var initializationSettingsIOS = IOSInitializationSettings(onDidReceiveLocalNotification: onDidReceiveLocalNotification);
+  var initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+  flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  
+    super.initState();
+FirebaseMessaging.instance.getToken();
+       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+
+      CleverTapPlugin.createNotification(jsonEncode(message.data));
+    });
+    
+  }
+ 
+  Future<dynamic> nativeMethodCallHandler(MethodCall methodCall) async {
+   
+    //notification renderer
+    /*******************************************IMPORTANT*****************************************************/
+    showNotification(methodCall.arguments["nm"],methodCall.arguments["nt"]);//Iam using flutterlocalnotification for demostration purposes, here you can check
+    //if notification is from clevertap by searching for the key "wzrk_cid" if its present you can put a condition to let clevertap handle the notification by calling createnotification method ,
+    //else use your logic to render the push.
+
+    switch (methodCall.method) {
+      case "methodNameItz" :
+        return "This is from android!!";
+        break;
+      default:
+        return "Nothing";
+        break;
+    }
   }
 
   @override
@@ -114,4 +194,9 @@ class _MyHomePageState extends State<MyHomePage> {
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
+  
+  
+
+
+
 }

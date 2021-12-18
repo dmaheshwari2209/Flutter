@@ -1,9 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.jideshtest">
+    <!-- Required to allow the app to send events and user profile information -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Recommended so that CleverTap knows when to attempt a network call -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
    <application
+       android:name=".MainApplication"
         android:label="jideshtest"
         android:icon="@mipmap/ic_launcher">
         <activity
+
             android:name=".MainActivity"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
@@ -27,6 +33,7 @@
               android:name="io.flutter.embedding.android.SplashScreenDrawable"
               android:resource="@drawable/launch_background"
               />
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -37,5 +44,19 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-    </application>
+       <!--service
+               android:name=".MyFirebaseMessagingService"
+               android:exported="false">
+           <intent-filter>
+               <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+           </intent-filter>
+       </service-->
+       <meta-data
+           android:name="CLEVERTAP_ACCOUNT_ID"
+           android:value="R74-547-885Z"/>
+       <meta-data
+           android:name="CLEVERTAP_TOKEN"
+           android:value="a45-4a2"/>
+
+   </application>
 </manifest>
