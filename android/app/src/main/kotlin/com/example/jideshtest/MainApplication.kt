@@ -5,6 +5,7 @@ import android.util.Log
 import com.clevertap.android.sdk.ActivityLifecycleCallback
 import com.clevertap.android.sdk.CleverTapAPI
 import com.clevertap.android.sdk.pushnotification.CTPushNotificationListener
+import com.clevertap.clevertap_plugin.CleverTapPlugin
 import io.flutter.app.FlutterApplication
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor
@@ -16,7 +17,7 @@ import io.flutter.view.FlutterMain
 import java.util.*
 
 
-class MainApplication: FlutterApplication(), PluginRegistrantCallback , CTPushNotificationListener {
+class MainApplication: FlutterApplication(), PluginRegistrantCallback  {
     var channel: MethodChannel? = null
     private val CHANNEL = "myChannel"
     override fun onCreate() {
@@ -24,10 +25,11 @@ class MainApplication: FlutterApplication(), PluginRegistrantCallback , CTPushNo
         //<--- Add this before super.onCreate()
       //  GetMethodChannel(this)
         super.onCreate()
+
   //     FlutterFirebaseMessagingBackgroundService.setPluginRegistrant(this);
 FlutterMain.startInitialization(this)
         val cleverTapAPI = CleverTapAPI.getDefaultInstance(applicationContext)
-        cleverTapAPI!!.ctPushNotificationListener = this
+
     }
     fun GetMethodChannel(context: Context, r: Map<String, String>) {
         FlutterMain.startInitialization(context)
@@ -57,9 +59,7 @@ FlutterMain.startInitialization(this)
        // GetMethodChannel(context, r)
     }
  override fun registerWith(registry: PluginRegistry?) {
+     
     }
 
-    override fun onNotificationClickedPayloadReceived(payload: HashMap<String, Any>?) {
-      Log.d("worked",payload.toString())
-    }
 }

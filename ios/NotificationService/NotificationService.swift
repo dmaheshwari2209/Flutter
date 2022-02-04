@@ -5,23 +5,19 @@
 //  Created by Jidesh Nair on 09/01/22.
 //
 
-import UserNotifications
+import UserNotifications;
+import CTNotificationService
+import CleverTapSDK
 
-class NotificationService: UNNotificationServiceExtension {
+
+
+class NotificationService: CTNotificationServiceExtension {
 
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
 
     override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
-        self.contentHandler = contentHandler
-        bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
-        
-        if let bestAttemptContent = bestAttemptContent {
-            // Modify the notification content here...
-            bestAttemptContent.title = "\(bestAttemptContent.title) [modified]"
-            
-            contentHandler(bestAttemptContent)
-        }
+        [[CleverTap sharedInstance] recordNotificationViewedEventWithData:request.content.userInfo];
     }
     
     override func serviceExtensionTimeWillExpire() {

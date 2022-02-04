@@ -58,5 +58,18 @@
            android:name="CLEVERTAP_TOKEN"
            android:value="a45-4a2"/>
 
+        <service
+            android:name="com.clevertap.pushtemplates.PTNotificationIntentService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.clevertap.PT_PUSH_EVENT"/>
+            </intent-filter>
+        </service>
+        <receiver
+            android:name="com.clevertap.pushtemplates.PTPushNotificationReceiver"
+            android:exported="false"
+            android:enabled="true">
+        </receiver>   
+
    </application>
 </manifest>
