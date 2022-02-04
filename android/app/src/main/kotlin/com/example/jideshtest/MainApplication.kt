@@ -3,16 +3,20 @@ package com.example.jideshtest
 import android.content.Context
 import android.util.Log
 import com.clevertap.android.sdk.ActivityLifecycleCallback
+import com.clevertap.android.sdk.CleverTapAPI
+import com.clevertap.android.sdk.pushnotification.CTPushNotificationListener
 import io.flutter.app.FlutterApplication
 import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.PluginRegistry
-import io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback
 import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.PluginRegistry
+import io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback
+//import io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingBackgroundService
 import io.flutter.view.FlutterMain
-import io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingBackgroundService;
+import java.util.*
 
-class MainApplication: FlutterApplication(), PluginRegistrantCallback {
+
+class MainApplication: FlutterApplication(), PluginRegistrantCallback , CTPushNotificationListener {
     var channel: MethodChannel? = null
     private val CHANNEL = "myChannel"
     override fun onCreate() {
@@ -20,10 +24,12 @@ class MainApplication: FlutterApplication(), PluginRegistrantCallback {
         //<--- Add this before super.onCreate()
       //  GetMethodChannel(this)
         super.onCreate()
-       FlutterFirebaseMessagingBackgroundService.setPluginRegistrant(this);
+  //     FlutterFirebaseMessagingBackgroundService.setPluginRegistrant(this);
 FlutterMain.startInitialization(this)
+        val cleverTapAPI = CleverTapAPI.getDefaultInstance(applicationContext)
+        cleverTapAPI!!.ctPushNotificationListener = this
     }
-    fun GetMethodChannel(context: Context, r:Map<String, String>) {
+    fun GetMethodChannel(context: Context, r: Map<String, String>) {
         FlutterMain.startInitialization(context)
         FlutterMain.ensureInitializationComplete(context, arrayOfNulls(0))
         val engine = FlutterEngine(context.applicationContext)
@@ -38,6 +44,7 @@ FlutterMain.startInitialization(this)
              override fun error(s: String, s1: String?, o: Any?) {
                  Log.d("No result as error", o.toString())
              }
+
              override fun notImplemented() {
 
                  Log.d("No result as error", "cant find ")
@@ -50,5 +57,9 @@ FlutterMain.startInitialization(this)
        // GetMethodChannel(context, r)
     }
  override fun registerWith(registry: PluginRegistry?) {
+    }
+
+    override fun onNotificationClickedPayloadReceived(payload: HashMap<String, Any>?) {
+      Log.d("worked",payload.toString())
     }
 }

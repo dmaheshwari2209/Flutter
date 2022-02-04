@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:clevertap_plugin/clevertap_plugin.dart';
@@ -6,17 +7,32 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'message.dart';
+import 'package:flutter_styled_toast/flutter_styled_toast.dart';
+
+ // ignore: unused_element
+ late CleverTapPlugin _clevertapPlugin;
+ String? selectedNotificationPayload;
+ NotificationAppLaunchDetails? notificationAppLaunchDetails;
+ final FirebaseMessaging firebaseMessaging = FirebaseMessaging.instance;
 Future<void> main() async {
    WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey: 'AIzaSyAn9YNjwzOzayKKhFgUs4_vGWDlsA8Tu3M',
-      appId: '1:531495931694:android:34fa3544c6d3d1053ab4bf',
-      messagingSenderId: '531495931694',
-      projectId: 'com.example.fcm',
-    ));
+  notificationAppLaunchDetails = 
+       await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
+
+  await Firebase.initializeApp();
+  firebaseMessaging.requestPermission(
+    alert: true,
+    announcement: false,
+    badge: true,
+    carPlay: false,
+    criticalAlert: false,
+    provisional: false,
+    sound: true,
+  );
+
   runApp(MyApp());
- 
+
 }
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = new FlutterLocalNotificationsPlugin();
 void showNotification(String nm, String nt) async {
@@ -34,20 +50,34 @@ void showNotification(String nm, String nt) async {
     await flutterLocalNotificationsPlugin.show(0, title, msge, platform,
         payload: msge);
   }
+
+
  Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print("Handling a background message");
   showNotification(message.data["nm"],message.data["nt"]);
-  CleverTapPlugin.createNotification(jsonEncode(message.data));
+  //CleverTapPlugin.createNotification(jsonEncode(message.data));
   print('on message'+message.data["nm"]+"working");
 }
 
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
-  @override
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey(debugLabel: "Main Navigator");
+
+  
   Widget build(BuildContext context) {
-    return MaterialApp(
+ 
+  final didNotificationLaunchApp =
+      notificationAppLaunchDetails?.didNotificationLaunchApp ?? false;
+String initialRoute = didNotificationLaunchApp ? MyHomePage.routeName : SecondPage.routeName;
+      
+                return MaterialApp(
+                   initialRoute: initialRoute,
+          routes: <String, WidgetBuilder>{
+            MyHomePage.routeName: (_) => MyHomePage(notificationAppLaunchDetails, title: '',),
+        SecondPage.routeName: (_) => SecondPage(selectedNotificationPayload)
+      },
       title: 'Flutter Demo',
+          navigatorKey: navigatorKey,
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -59,14 +89,26 @@ class MyApp extends StatelessWidget {
         // Notice that the counter didn't reset back to zero; the application
         // is not restarted.
         primarySwatch: Colors.blue,
-      ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      )
     );
   }
+
+
+
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+  
+
+  MyHomePage(this.notificationAppLaunchDetails,{Key? key, required this.title}) : super(key: key);
+
+
+final NotificationAppLaunchDetails? notificationAppLaunchDetails;
+  static const String routeName = '/';
+
+ 
+  bool get didNotificationLaunchApp =>
+      notificationAppLaunchDetails?.didNotificationLaunchApp ?? false;
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -77,14 +119,18 @@ class MyHomePage extends StatefulWidget {
   // used by the build method of the State. Fields in a Widget subclass are
   // always marked "final".
 
-  final String title;
+  late final String title;
+
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+   var inboxInitialized = false;
   int _counter = 0;
+
+ final GlobalKey<NavigatorState> navigatorKey = GlobalKey(debugLabel: "Main Navigator");
   static const platform = const MethodChannel("myChannel");
   void _incrementCounter() {
 
@@ -102,101 +148,230 @@ class _MyHomePageState extends State<MyHomePage> {
         'second': 'turtledoves',
         'number': 1
       };
-      CleverTapPlugin.recordEvent("Flutter Event",eventData);
+   //   CleverTapPlugin.recordEvent("Flutter Event",eventData);
 
     });
+    showInbox();
   }
+
+
   @override
-  void initState() { CleverTapPlugin.setDebugLevel(3);
+  void initState() {
+      _clevertapPlugin = new CleverTapPlugin();
+    CleverTapPlugin.setDebugLevel(3);
+CleverTapPlugin.registerForPush();
+CleverTapPlugin.initializeInbox();
+_clevertapPlugin.setCleverTapPushClickedPayloadReceivedHandler(pushClickedPayloadReceived);
   CleverTapPlugin.createNotificationChannel("fluttertest", "Flutter Test", "Flutter Test", 3, true);
+  CleverTapPlugin.createNotificationChannel("Tester", "Tester", "Flutter Test", 4, true);
     platform.setMethodCallHandler(nativeMethodCallHandler);
   FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   var initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher'); // <- default icon name is @mipmap/ic_launcher
  // var initializationSettingsIOS = IOSInitializationSettings(onDidReceiveLocalNotification: onDidReceiveLocalNotification);
   var initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-  flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  flutterLocalNotificationsPlugin.initialize(initializationSettings,onSelectNotification: onselectnotificaion);
   
-    super.initState();
-FirebaseMessaging.instance.getToken();
-       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      super.initState();
+      FirebaseMessaging.instance
+          .getInitialMessage()
+          .then((RemoteMessage? message) {
+print("This is working"+jsonEncode(message?.data));
 
-      CleverTapPlugin.createNotification(jsonEncode(message.data));
-    });
-    
+        if (message != null) {
+          Navigator.pushNamed(
+            context,
+            '/message',
+            arguments: MessageArguments(message, true),
+          );
+        }
+      });
+  
+      FirebaseMessaging.instance.getToken().then((value) {
+     String? token = value;
+     if(Platform.isAndroid)
+     {
+     print("FCM Token is"+token!);
+    CleverTapPlugin.setPushToken(value!);
+     }
+       });
+  if(Platform.isIOS)
+  {
+FirebaseMessaging.instance.getAPNSToken().then((iosToken)
+{
+     print("FCM Token is"+iosToken!);
+    CleverTapPlugin.setPushToken(iosToken);
+});
   }
- 
-  Future<dynamic> nativeMethodCallHandler(MethodCall methodCall) async {
-   
-    //notification renderer
-    /*******************************************IMPORTANT*****************************************************/
-    showNotification(methodCall.arguments["nm"],methodCall.arguments["nt"]);//Iam using flutterlocalnotification for demostration purposes, here you can check
-    //if notification is from clevertap by searching for the key "wzrk_cid" if its present you can put a condition to let clevertap handle the notification by calling createnotification method ,
-    //else use your logic to render the push.
-
-    switch (methodCall.method) {
-      case "methodNameItz" :
-        return "This is from android!!";
-        break;
-      default:
-        return "Nothing";
-        break;
+  
+         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+   showNotification(message.data["nm"],message.data["nt"]);
+       // CleverTapPlugin.createNotification(jsonEncode(message.data));
+     
+      });
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+   FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        print('A new onMessageOpenedApp event was published!');
+        Navigator.pushNamed(
+          context,
+          '/message',
+          arguments: MessageArguments(message, true),
+        );
+      });
+      _clevertapPlugin.setCleverTapInboxDidInitializeHandler(inboxDidInitialize);
+  _clevertapPlugin
+        .setCleverTapInboxMessagesDidUpdateHandler(inboxMessagesDidUpdate);
     }
+     void inboxDidInitialize() {
+    this.setState(() {
+      print("inboxDidInitialize called");
+      inboxInitialized = true;
+    });
+  }
+  void inboxMessagesDidUpdate() {
+    this.setState(() async {
+      print("inboxMessagesDidUpdate called");
+      int? unread = await CleverTapPlugin.getInboxMessageUnreadCount();
+      int? total = await CleverTapPlugin.getInboxMessageCount();
+      print("Unread count = " + unread.toString());
+      print("Total count = " + total.toString());
+    });
+  }
+   void pushClickedPayloadReceived(Map<String, dynamic> map) {
+      print("pushClickedPayloadReceived called");
+      this.setState(() async {
+        var data = jsonEncode(map);
+        print("on Push Click Payload = " + data.toString());
+      });
+    }
+    Future<dynamic> nativeMethodCallHandler(MethodCall methodCall) async {
+     print("this should work on app killed too");
+      switch (methodCall.method) {
+        case "methodNameItz" :
+          return "This is from android!!";
+          break;
+        default:
+          return "Nothing";
+          break;
+      }
+    }
+  void showInbox() {
+    if (inboxInitialized) {
+     
+        var styleConfig = {
+          'noMessageTextColor': '#ff6600',
+          'noMessageText': 'No message(s) to show.',
+          'navBarTitle': 'App Inbox',
+          'navBarTitleColor': '#101727',
+          'navBarColor': '#EF4444',
+          'tabs': ["Offers"]
+        };
+        CleverTapPlugin.showInbox(styleConfig);
+     
+    }
+  }
+  
+    @override
+    Widget build(BuildContext context) {
+      
+      // This method is rerun every time setState is called, for instance as done
+      // by the _incrementCounter method above.
+      //
+      // The Flutter framework has been optimized to make rerunning build methods
+      // fast, so that you can just rebuild anything that needs updating rather
+      // than having to individually change instances of widgets.
+    
+          return Scaffold(
+            appBar: AppBar(
+      
+      
+      
+            ),
+        body: Center(
+          // Center is a layout widget. It takes a single child and positions it
+          // in the middle of the parent.
+          child: Column(
+            // Column is also a layout widget. It takes a list of children and
+            // arranges them vertically. By default, it sizes itself to fit its
+            // children horizontally, and tries to be as tall as its parent.
+            //
+            // Invoke "debug painting" (press "p" in the console, choose the
+            // "Toggle Debug Paint" action from the Flutter Inspector in Android
+            // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
+            // to see the wireframe for each widget.
+            //
+            // Column has various properties to control how it sizes itself and
+            // how it positions its children. Here we use mainAxisAlignment to
+            // center the children vertically; the main axis here is the vertical
+            // axis because Columns are vertical (the cross axis would be
+            // horizontal).
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                'You have pushed the button this many times:',
+              ),
+              Text(
+                '$_counter',
+                style: Theme.of(context).textTheme.headline4,
+              ),
+            ],
+          ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _incrementCounter,
+          tooltip: 'Increment',
+          child: Icon(Icons.add),
+        ),
+         // This trailing comma makes auto-formatting nicer for build methods.
+      );
+    }
+  
+  
+  
+  
+  
+  
+    Future<dynamic> onselectnotificaion(String? payload) async {
+         navigatorKey.currentState?.push(
+      MaterialPageRoute(builder: (_) => MyApp())
+   );
+      print("chal gaya" +payload!);
+  }
+}
+class SecondPage extends StatefulWidget {
+  const SecondPage(
+    this.payload, {
+    Key? key,
+  }) : super(key: key);
+
+  static const String routeName = '/secondPage';
+
+  final String? payload;
+
+  @override
+  State<StatefulWidget> createState() => SecondPageState();
+}
+
+class SecondPageState extends State<SecondPage> {
+  String? _payload;
+
+  @override
+  void initState() {
+    super.initState();
+    _payload = widget.payload;
   }
 
   @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: Text('Second Screen with payload: ${_payload ?? ''}'),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
-  }
-  
-  
-
-
-
+        body: Center(
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Go back!'),
+          ),
+        ),
+      );
 }
